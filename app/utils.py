@@ -231,4 +231,89 @@ def sync_images():
             return False, "No images to sync"
     except Exception as e:
         logger.error(f"Error in sync_images: {str(e)}", exc_info=True)
-        return False, f"Error syncing images: {str(e)}" 
+        return False, f"Error syncing images: {str(e)}"
+
+def delete_from_github(file_path):
+    """Delete a file from GitHub repository."""
+    try:
+        logger.debug(f"Starting delete_from_github for {file_path}")
+        logger.debug(f"GitHub Username: {Config.GITHUB_USERNAME}")
+        
+        if not Config.GITHUB_TOKEN:
+            return False, "GitHub token not configured"
+        
+        # Initialize GitHub client
+        g = Github(Config.GITHUB_TOKEN)
+        repo = g.get_repo(f"{Config.GITHUB_USERNAME}/89hardy.github.io")
+        logger.debug(f"Connected to repository: {repo.full_name}")
+        
+        # Get the current branch (usually 'main' or 'master')
+        branch = repo.default_branch
+        logger.debug(f"Default branch: {branch}")
+        
+        # Get the latest commit
+        ref = repo.get_git_ref(f"heads/{branch}")
+        latest_commit = repo.get_commit(ref.object.sha)
+        logger.debug(f"Latest commit SHA: {latest_commit.sha}")
+        
+        # Set up headers for GitHub API
+        headers = {
+            'Authorization': f'token {Config.GITHUB_TOKEN}',
+            'Accept': 'application/vnd.github.v3+json'
+        }
+        
+        # Get the current tree
+        base_tree = latest_commit.commit.tree
+        
+        # Create a new tree without the deleted file
+        tree_data = []
+        for item in base_tree.tree:
+            if item.path != file_path:
+                tree_data.append({
+                    "path": item.path,
+                    "mode": item.mode,
+                    "type": item.type,
+                    "sha": item.sha
+                })
+        
+        # Create new tree using GitHub API
+        tree_payload = {
+            'base_tree': None,  # Create a new root tree
+            'tree': tree_data
+        }
+        tree_response = requests.post(
+            f'https://api.github.com/repos/{Config.GITHUB_USERNAME}/89hardy.github.io/git/trees',
+            headers=headers,
+            json=tree_payload
+        ).json()
+        
+        # Create commit using GitHub API
+        commit_message = f"Delete {file_path} - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        commit_data = {
+            'message': commit_message,
+            'tree': tree_response['sha'],
+            'parents': [latest_commit.sha]
+        }
+        commit_response = requests.post(
+            f'https://api.github.com/repos/{Config.GITHUB_USERNAME}/89hardy.github.io/git/commits',
+            headers=headers,
+            json=commit_data
+        ).json()
+        logger.debug(f"Created commit with SHA: {commit_response['sha']}")
+        
+        # Update reference using GitHub API
+        ref_data = {
+            'sha': commit_response['sha'],
+            'force': False
+        }
+        ref_response = requests.patch(
+            f'https://api.github.com/repos/{Config.GITHUB_USERNAME}/89hardy.github.io/git/refs/heads/{branch}',
+            headers=headers,
+            json=ref_data
+        )
+        logger.debug("Updated reference successfully")
+        
+        return True, "File deleted successfully"
+    except Exception as e:
+        logger.error(f"Error in delete_from_github: {str(e)}", exc_info=True)
+        return False, f"Error deleting file: {str(e)}" 
