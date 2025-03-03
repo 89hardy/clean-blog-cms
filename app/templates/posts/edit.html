@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}{% if title %}Edit Post{% else %}New Post{% endif %} - Blog CMS{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h1>{% if title %}Edit Post{% else %}New Post{% endif %}</h1>
+</div>
+
+<form method="POST">
+    <div class="mb-3">
+        <label for="title" class="form-label">Title</label>
+        <input type="text" class="form-control" id="title" name="title" value="{{ title }}" required>
+    </div>
+    
+    <div class="mb-3">
+        <label for="categories" class="form-label">Categories</label>
+        <input type="text" class="form-control" id="categories" name="categories" value="{{ categories }}" 
+               placeholder="Comma-separated categories">
+    </div>
+    
+    <div class="mb-3">
+        <label for="tags" class="form-label">Tags</label>
+        <input type="text" class="form-control" id="tags" name="tags" value="{{ tags }}" 
+               placeholder="Comma-separated tags">
+    </div>
+    
+    <div class="mb-3">
+        <label for="content" class="form-label">Content</label>
+        <textarea class="form-control" id="content" name="content" rows="20">{{ post }}</textarea>
+    </div>
+    
+    <div class="d-flex justify-content-between">
+        <a href="{{ url_for('posts.list_posts') }}" class="btn btn-secondary">Cancel</a>
+        <button type="submit" class="btn btn-primary">Save</button>
+    </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const easyMDE = new EasyMDE({
+            element: document.getElementById('content'),
+            spellChecker: false,
+            autosave: {
+                enabled: true,
+                uniqueId: 'post-editor',
+                delay: 1000,
+            },
+            uploadImage: true,
+            imageUploadEndpoint: '{{ url_for("media.upload") }}',
+            toolbar: [
+                'bold', 'italic', 'heading', '|',
+                'quote', 'unordered-list', 'ordered-list', '|',
+                'link', 'image', '|',
+                'preview', 'side-by-side', 'fullscreen', '|',
+                'guide'
+            ]
+        });
+    });
+</script>
+{% endblock %} 
