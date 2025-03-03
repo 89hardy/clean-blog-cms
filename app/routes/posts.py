@@ -65,7 +65,7 @@ def new_post():
         # Save the post
         post_path = get_post_path(filename)
         with open(post_path, 'w', encoding='utf-8') as f:
-            frontmatter.dump(post, f)
+            f.write(frontmatter.dumps(post))
         
         flash('Post created successfully')
         return redirect(url_for('posts.list_posts'))
@@ -84,23 +84,22 @@ def edit_post(filename):
         categories = request.form.get('categories', '').split(',')
         tags = request.form.get('tags', '').split(',')
         
+        # Load existing post to preserve date
+        with open(post_path, 'r', encoding='utf-8') as f:
+            existing_post = frontmatter.load(f)
+        
         # Update post with new content and metadata
         post = frontmatter.Post(
             content,
             title=title,
+            date=existing_post.metadata.get('date', datetime.now()),
             categories=[cat.strip() for cat in categories if cat.strip()],
             tags=[tag.strip() for tag in tags if tag.strip()]
         )
         
-        # Preserve original date if it exists
-        with open(post_path, 'r', encoding='utf-8') as f:
-            original = frontmatter.load(f)
-            if 'date' in original.metadata:
-                post.metadata['date'] = original.metadata['date']
-        
         # Save the updated post
         with open(post_path, 'w', encoding='utf-8') as f:
-            frontmatter.dump(post, f)
+            f.write(frontmatter.dumps(post))
         
         flash('Post updated successfully')
         return redirect(url_for('posts.list_posts'))
