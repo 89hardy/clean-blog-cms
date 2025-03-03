@@ -18,23 +18,16 @@ def get_all_posts():
         for filename in os.listdir(Config.POSTS_PATH):
             if filename.endswith('.md'):
                 post_path = get_post_path(filename)
-                with open(post_path, 'r') as f:
+                with open(post_path, 'r', encoding='utf-8') as f:
                     post = frontmatter.load(f)
-                    date = post.metadata.get('date', '')
-                    # Convert string date to datetime if it's a string
-                    if isinstance(date, str) and date:
-                        try:
-                            date = datetime.strptime(date, '%Y-%m-%d')
-                        except ValueError:
-                            pass
                     posts_list.append({
                         'filename': filename,
                         'title': post.metadata.get('title', ''),
-                        'date': date,
+                        'date': post.metadata.get('date', ''),
                         'categories': post.metadata.get('categories', []),
                         'tags': post.metadata.get('tags', [])
                     })
-    return sorted(posts_list, key=lambda x: x['date'] or datetime.min, reverse=True)
+    return sorted(posts_list, key=lambda x: x['date'] or '', reverse=True)
 
 @posts.route('/posts')
 @login_required
@@ -66,9 +59,12 @@ def new_post():
             tags=[tag.strip() for tag in tags if tag.strip()]
         )
         
+        # Ensure the posts directory exists
+        os.makedirs(Config.POSTS_PATH, exist_ok=True)
+        
         # Save the post
         post_path = get_post_path(filename)
-        with open(post_path, 'w') as f:
+        with open(post_path, 'w', encoding='utf-8') as f:
             frontmatter.dump(post, f)
         
         flash('Post created successfully')
@@ -97,20 +93,20 @@ def edit_post(filename):
         )
         
         # Preserve original date if it exists
-        with open(post_path, 'r') as f:
+        with open(post_path, 'r', encoding='utf-8') as f:
             original = frontmatter.load(f)
             if 'date' in original.metadata:
                 post.metadata['date'] = original.metadata['date']
         
         # Save the updated post
-        with open(post_path, 'w') as f:
+        with open(post_path, 'w', encoding='utf-8') as f:
             frontmatter.dump(post, f)
         
         flash('Post updated successfully')
         return redirect(url_for('posts.list_posts'))
     
     # Load existing post for editing
-    with open(post_path, 'r') as f:
+    with open(post_path, 'r', encoding='utf-8') as f:
         post = frontmatter.load(f)
         return render_template('posts/edit.html', 
                             post=post.content,
