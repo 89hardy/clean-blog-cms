@@ -4,6 +4,7 @@ from flask_login import login_required
 from werkzeug.utils import secure_filename
 from PIL import Image
 from config.config import Config
+from app.utils import sync_images
 
 media = Blueprint('media', __name__)
 
@@ -45,11 +46,19 @@ def upload():
         filename = secure_filename(file.filename)
         filepath = os.path.join(Config.IMAGES_PATH, filename)
         
+        # Ensure the images directory exists
+        os.makedirs(Config.IMAGES_PATH, exist_ok=True)
+        
         # Save the file
         file.save(filepath)
         
         # Optimize the image
         optimize_image(filepath)
+        
+        # Sync images with GitHub
+        success, message = sync_images()
+        if not success:
+            print(f"Warning: Failed to sync images with GitHub: {message}")
         
         # Return the URL for the saved file
         return jsonify({

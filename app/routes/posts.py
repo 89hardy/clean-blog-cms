@@ -4,6 +4,7 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash,
 from flask_login import login_required
 import frontmatter
 from config.config import Config
+from app.utils import commit_and_push_changes
 
 posts = Blueprint('posts', __name__)
 
@@ -67,7 +68,13 @@ def new_post():
         with open(post_path, 'w', encoding='utf-8') as f:
             f.write(frontmatter.dumps(post))
         
-        flash('Post created successfully')
+        # Commit and push changes
+        success, message = commit_and_push_changes()
+        if success:
+            flash('Post created and pushed to GitHub successfully')
+        else:
+            flash(f'Post created but not pushed to GitHub: {message}')
+        
         return redirect(url_for('posts.list_posts'))
     
     return render_template('posts/edit.html')
@@ -101,7 +108,13 @@ def edit_post(filename):
         with open(post_path, 'w', encoding='utf-8') as f:
             f.write(frontmatter.dumps(post))
         
-        flash('Post updated successfully')
+        # Commit and push changes
+        success, message = commit_and_push_changes()
+        if success:
+            flash('Post updated and pushed to GitHub successfully')
+        else:
+            flash(f'Post updated but not pushed to GitHub: {message}')
+        
         return redirect(url_for('posts.list_posts'))
     
     # Load existing post for editing
@@ -120,7 +133,12 @@ def delete_post(filename):
     post_path = get_post_path(filename)
     try:
         os.remove(post_path)
-        flash('Post deleted successfully')
+        # Commit and push changes
+        success, message = commit_and_push_changes()
+        if success:
+            flash('Post deleted and changes pushed to GitHub successfully')
+        else:
+            flash(f'Post deleted but not pushed to GitHub: {message}')
     except OSError:
         flash('Error deleting post')
     return redirect(url_for('posts.list_posts')) 
