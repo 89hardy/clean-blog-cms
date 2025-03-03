@@ -1,5 +1,6 @@
 import os
 import logging
+import requests
 from datetime import datetime
 from github import Github
 from config.config import Config
@@ -36,7 +37,7 @@ def commit_and_push_changes():
         
         # Create a tree with the new/modified files
         base_tree = latest_commit.commit.tree
-        element_list = []
+        tree_data = []
         
         # Walk through the _posts directory
         logger.debug(f"Walking through posts directory: {Config.POSTS_PATH}")
@@ -49,37 +50,69 @@ def commit_and_push_changes():
                     with open(file_path, 'r', encoding='utf-8') as f:
                         content = f.read()
                     
-                    # Create blob
-                    blob = repo.create_git_blob(content, "utf-8")
-                    logger.debug(f"Created blob with SHA: {blob.sha}")
+                    # Create blob using GitHub API directly
+                    headers = {
+                        'Authorization': f'token {Config.GITHUB_TOKEN}',
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                    blob_data = {
+                        'content': content,
+                        'encoding': 'utf-8'
+                    }
+                    blob_response = requests.post(
+                        f'https://api.github.com/repos/{Config.GITHUB_USERNAME}/89hardy.github.io/git/blobs',
+                        headers=headers,
+                        json=blob_data
+                    ).json()
+                    logger.debug(f"Created blob with SHA: {blob_response['sha']}")
                     
                     # Create tree element
                     relative_path = os.path.relpath(file_path, Config.BLOG_PATH)
                     logger.debug(f"Relative path: {relative_path}")
-                    element = {
+                    tree_data.append({
                         "path": relative_path,
                         "mode": "100644",
                         "type": "blob",
-                        "sha": blob.sha
-                    }
-                    element_list.append(element)
+                        "sha": blob_response['sha']
+                    })
         
-        if element_list:
-            logger.debug(f"Creating tree with {len(element_list)} elements")
-            # Create tree
-            new_tree = repo.create_git_tree(element_list, base_tree)
+        if tree_data:
+            logger.debug(f"Creating tree with {len(tree_data)} elements")
+            # Create tree using GitHub API directly
+            tree_payload = {
+                'base_tree': base_tree.sha,
+                'tree': tree_data
+            }
+            tree_response = requests.post(
+                f'https://api.github.com/repos/{Config.GITHUB_USERNAME}/89hardy.github.io/git/trees',
+                headers=headers,
+                json=tree_payload
+            ).json()
             
-            # Create commit
+            # Create commit using GitHub API directly
             commit_message = f"Update blog posts - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-            new_commit = repo.create_git_commit(
-                commit_message,
-                new_tree,
-                [latest_commit.commit]
-            )
-            logger.debug(f"Created commit with SHA: {new_commit.sha}")
+            commit_data = {
+                'message': commit_message,
+                'tree': tree_response['sha'],
+                'parents': [latest_commit.sha]
+            }
+            commit_response = requests.post(
+                f'https://api.github.com/repos/{Config.GITHUB_USERNAME}/89hardy.github.io/git/commits',
+                headers=headers,
+                json=commit_data
+            ).json()
+            logger.debug(f"Created commit with SHA: {commit_response['sha']}")
             
-            # Update reference
-            ref.edit(new_commit.sha)
+            # Update reference using GitHub API directly
+            ref_data = {
+                'sha': commit_response['sha'],
+                'force': False
+            }
+            ref_response = requests.patch(
+                f'https://api.github.com/repos/{Config.GITHUB_USERNAME}/89hardy.github.io/git/refs/heads/{branch}',
+                headers=headers,
+                json=ref_data
+            )
             logger.debug("Updated reference successfully")
             
             return True, "Changes pushed successfully"
@@ -112,7 +145,13 @@ def sync_images():
         
         # Create a tree with the images
         base_tree = latest_commit.commit.tree
-        element_list = []
+        tree_data = []
+        
+        # Set up headers for GitHub API
+        headers = {
+            'Authorization': f'token {Config.GITHUB_TOKEN}',
+            'Accept': 'application/vnd.github.v3+json'
+        }
         
         # Walk through the images directory
         logger.debug(f"Walking through images directory: {Config.IMAGES_PATH}")
@@ -125,37 +164,65 @@ def sync_images():
                     with open(file_path, 'rb') as f:
                         content = f.read()
                     
-                    # Create blob
-                    blob = repo.create_git_blob(content.hex(), "base64")
-                    logger.debug(f"Created blob with SHA: {blob.sha}")
+                    # Create blob using GitHub API directly
+                    blob_data = {
+                        'content': content.hex(),
+                        'encoding': 'base64'
+                    }
+                    blob_response = requests.post(
+                        f'https://api.github.com/repos/{Config.GITHUB_USERNAME}/89hardy.github.io/git/blobs',
+                        headers=headers,
+                        json=blob_data
+                    ).json()
+                    logger.debug(f"Created blob with SHA: {blob_response['sha']}")
                     
                     # Create tree element
                     relative_path = os.path.relpath(file_path, Config.BLOG_PATH)
                     logger.debug(f"Relative path: {relative_path}")
-                    element = {
+                    tree_data.append({
                         "path": relative_path,
                         "mode": "100644",
                         "type": "blob",
-                        "sha": blob.sha
-                    }
-                    element_list.append(element)
+                        "sha": blob_response['sha']
+                    })
         
-        if element_list:
-            logger.debug(f"Creating tree with {len(element_list)} elements")
-            # Create tree
-            new_tree = repo.create_git_tree(element_list, base_tree)
+        if tree_data:
+            logger.debug(f"Creating tree with {len(tree_data)} elements")
+            # Create tree using GitHub API directly
+            tree_payload = {
+                'base_tree': base_tree.sha,
+                'tree': tree_data
+            }
+            tree_response = requests.post(
+                f'https://api.github.com/repos/{Config.GITHUB_USERNAME}/89hardy.github.io/git/trees',
+                headers=headers,
+                json=tree_payload
+            ).json()
             
-            # Create commit
+            # Create commit using GitHub API directly
             commit_message = f"Update blog images - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-            new_commit = repo.create_git_commit(
-                commit_message,
-                new_tree,
-                [latest_commit.commit]
-            )
-            logger.debug(f"Created commit with SHA: {new_commit.sha}")
+            commit_data = {
+                'message': commit_message,
+                'tree': tree_response['sha'],
+                'parents': [latest_commit.sha]
+            }
+            commit_response = requests.post(
+                f'https://api.github.com/repos/{Config.GITHUB_USERNAME}/89hardy.github.io/git/commits',
+                headers=headers,
+                json=commit_data
+            ).json()
+            logger.debug(f"Created commit with SHA: {commit_response['sha']}")
             
-            # Update reference
-            ref.edit(new_commit.sha)
+            # Update reference using GitHub API directly
+            ref_data = {
+                'sha': commit_response['sha'],
+                'force': False
+            }
+            ref_response = requests.patch(
+                f'https://api.github.com/repos/{Config.GITHUB_USERNAME}/89hardy.github.io/git/refs/heads/{branch}',
+                headers=headers,
+                json=ref_data
+            )
             logger.debug("Updated reference successfully")
             
             return True, "Images synced successfully"
