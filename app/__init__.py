@@ -1,3 +1,4 @@
+# This is a dummy commit for testing CodeRabbit
 from flask import Flask
 from flask_login import LoginManager
 from config.config import Config
