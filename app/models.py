@@ -4,6 +4,11 @@ from flask import current_app
 from config.config import Config
 
 class User(UserMixin):
+    """
+    User model for authentication.
+    Implements Flask-Login's UserMixin for session management.
+    Currently supports a single admin user defined in configuration.
+    """
     def __init__(self, username):
         self.username = username
         self.id = username
