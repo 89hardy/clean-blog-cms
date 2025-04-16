@@ -13,6 +13,10 @@ class User(UserMixin):
         self.username = username
         self.id = username
     
+    def is_admin(self):
+        """Check if the current user is an admin."""
+        return self.username == Config.ADMIN_USERNAME
+    
     @staticmethod
     def check_credentials(username, password):
         """Check if the provided credentials are valid."""
